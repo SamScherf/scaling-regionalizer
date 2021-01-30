@@ -8,7 +8,7 @@ from PIL import Image
 from PIL import ImageFilter
 import random
 import math
-
+import time
 
 def main():
     # Scale image
@@ -68,7 +68,6 @@ def scale_image(image_name):
            
             # Set pixel to most similar color
             scaled_pixels[x,y] = get_most_similiar_color(current_color, color_set, normal_color_dict)
-            #scaled_pixels[x,y] = current_color
 
     # Save image            
     scaled_image.save("output/" + image_name)
@@ -91,7 +90,11 @@ def get_set_of_colors(image):
     return color_set
     
 def get_most_similiar_color(base_color, color_set, normal_color_dict):
-    
+  
+    # Check if set only has one color and return that color if so
+    if len(color_set) == 1:
+        return color_set.pop()
+
     # Initialize variables
     best_score = -1
 
