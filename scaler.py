@@ -34,6 +34,25 @@ def scale_image(image_name):
         normalized_color = normalize(color)
         normal_color_dict[str(color)] = normalized_color
 
+    # Create grid of surrounding colors
+    color_grid = {}
+    color_col = {}
+    for y in range(orginal_height):
+        for x in range(orginal_width):
+
+            # Initialize color set
+            color_set = set()
+
+            # Get square of colors around original pixel
+            for dy in range(-1,1):
+                for dx in range(-1,1):
+                    color_set.add(orginal_pixels[x+dx, y+dy])
+
+            # Add set to set
+            color_grid[str(x) + "," + str(y)] = color_set
+
+
+
     # Set Scales
     scale = 8
     blur_scale = 10
@@ -50,24 +69,21 @@ def scale_image(image_name):
     
             
     # Loop though every pixel in new image
-    for y in range(2*scale,scaled_height-2*scale):
-        for x in range(2*scale,scaled_width-2*scale):
+    for y in range(scaled_height-1*scale):
+        for x in range(scaled_width-1*scale):
             
             # Get color of current pixel
             current_color = scaled_pixels[x,y]
-            orginal_x = int(round(x/scale))
-            orginal_y = int(round(y/scale))
+            
+            nearest_o_x = int(round(x/scale))
+            nearest_o_y = int(round(y/scale))
 
-            # Create color set
-            color_set = set()
+            # Get possible colors from color grid
+            possible_colors = color_grid[str(nearest_o_x) + "," + str(nearest_o_y)]
 
-            # Get square of colors around original pixel
-            for dy in range(-1,1):
-                for dx in range(-1,1):
-                    color_set.add(orginal_pixels[orginal_x+dx, orginal_y+dy])
-           
             # Set pixel to most similar color
-            scaled_pixels[x,y] = get_most_similiar_color(current_color, color_set, normal_color_dict)
+            scaled_pixels[x,y] = get_most_similiar_color(current_color, possible_colors, normal_color_dict)
+            #scaled_pixels[x,y] = current_color
 
     # Save image            
     scaled_image.save("output/" + image_name)
@@ -93,10 +109,10 @@ def get_most_similiar_color(base_color, color_set, normal_color_dict):
   
     # Check if set only has one color and return that color if so
     if len(color_set) == 1:
-        return color_set.pop()
+        return next(iter(color_set))
 
     # Initialize variables
-    best_score = -1
+    best_score = -2
 
     # Normalize base color
     normal_base_color = normalize(base_color)
