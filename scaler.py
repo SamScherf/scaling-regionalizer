@@ -9,50 +9,45 @@ from PIL import ImageFilter
 import random
 import math
 import time
+import os
 
 def main():
-    # Scale image
-    scale_image("test.png")
 
+    # Get list of input files
+    image_names = os.listdir("input")
+
+    # Scale and then save each image
+    for image_name in image_names:
+        # Scale image
+        image = scale_image("input/" + image_name)
+
+        # Save image
+        image.save("output/" + image_name)
 
 def scale_image(image_name):
+    """
+    This function takes in an image name
+    and returns a scaled up version of that image
+    that has been smoothed without adding new colors
+    """
    
     # Open image, load pixels in var, and get width and height
     orginal_image = Image.open(image_name)
-    orginal_pixels = orginal_image.load()
     orginal_width = orginal_image.width
     orginal_height = orginal_image.height
    
     # Get set of all original colors
     orginal_colors = get_set_of_colors(orginal_image)
-
-    # Initialize
-    normal_color_dict = {}
-
-    # Create dict of normalized colors
-    for color in orginal_colors:
-        normalized_color = normalize(color)
-        normal_color_dict[str(color)] = normalized_color
-
+        
+    # Create normalized color dictionaries
+    normal_color_dict = create_normalized_color_dict(orginal_colors)
+    
     # Create grid of surrounding colors
     color_grid = {}
-    color_col = {}
-    for y in range(orginal_height):
-        for x in range(orginal_width):
 
-            # Initialize color set
-            color_set = set()
-
-            # Get square of colors around original pixel
-            for dy in range(-1,1):
-                for dx in range(-1,1):
-                    color_set.add(orginal_pixels[x+dx, y+dy])
-
-            # Add set to set
-            color_grid[str(x) + "," + str(y)] = color_set
-
-
-
+    # Create color grid
+    color_grid = create_color_grid(color_grid, orginal_image, orginal_width, orginal_height)
+   
     # Set Scales
     scale = 8
     blur_scale = 10
@@ -61,33 +56,111 @@ def scale_image(image_name):
     scaled_width = orginal_width * scale
     scaled_height = orginal_height * scale
 
-
     # Resize new image, apply filter, and load pixels in var
     scaled_image = orginal_image.resize((scaled_width, scaled_height), resample=Image.LANCZOS)
     scaled_image = scaled_image.filter(ImageFilter.GaussianBlur(blur_scale))
     scaled_pixels = scaled_image.load()
-    
-            
+   
+
     # Loop though every pixel in new image
-    for y in range(scaled_height-1*scale):
-        for x in range(scaled_width-1*scale):
+    for y in range(scaled_height):
+        for x in range(scaled_width):
             
             # Get color of current pixel
             current_color = scaled_pixels[x,y]
-            
             nearest_o_x = int(round(x/scale))
             nearest_o_y = int(round(y/scale))
-
+            
             # Get possible colors from color grid
             possible_colors = color_grid[str(nearest_o_x) + "," + str(nearest_o_y)]
 
             # Set pixel to most similar color
             scaled_pixels[x,y] = get_most_similiar_color(current_color, possible_colors, normal_color_dict)
-            #scaled_pixels[x,y] = current_color
 
-    # Save image            
-    scaled_image.save("output/" + image_name)
+    # Return image            
+    return scaled_image
 
+
+def create_normalized_color_dict(set_of_colors):
+    """
+    This function takes in a set of colors and returns
+    a dict of normalized colors assessable by the string of
+    their original color
+    """
+
+    # Initialize
+    normal_color_dict = {}
+
+    # Create dict of normalized colors
+    for color in set_of_colors:
+        normalized_color = normalize(color)
+        normal_color_dict[str(color)] = normalized_color
+
+    # Return
+    return normal_color_dict
+
+
+
+def create_color_grid(color_grid, image, width, height):
+    """
+    This function is a boiler plate which creates a grid of colors by calling all
+    the edge cases and overflows
+    """
+
+    pixels = image.load()
+
+    # Top edge case
+    color_grid = color_grid_generator(color_grid, pixels, range(width), {0}, range(-1,1), range(0,1))
+      
+    # Left edge case
+    color_grid = color_grid_generator(color_grid, pixels, {0}, range(height), range(0,1), range(-1,1))
+
+    # Bottom edge case
+    color_grid = color_grid_generator(color_grid, pixels, range(width), {height-1}, range(-1,1), range(-1,0))
+
+    # Right edge case
+    color_grid = color_grid_generator(color_grid, pixels, {width-1}, range(height), range(0,1), range(-1,1))
+   
+    # Inside
+    color_grid = color_grid_generator(color_grid, pixels, range(1, width-1), range(1, height-1), range(-1,1), range(-1,1))
+    
+    # Bottom overflow
+    for x in range(width):
+        color_grid[str(x) + "," + str(height)] = color_grid[str(x) + "," + str(height-1)]
+
+    # Right overflow
+    for y in range(height):
+        color_grid[str(width) + "," + str(y)] = color_grid[str(width-1) + "," + str(y)]
+
+    # Bottom Right corner overflow
+    color_grid[str(width) + "," + str(height)] = color_grid[str(width-1) + "," + str(height-1)]
+
+    # Return color grid
+    return color_grid
+
+def color_grid_generator(color_grid, pixels, x_range, y_range, dx_range, dy_range):
+    """
+    This function takes in a color grid, pixels, and ranges and creates
+    a color grid of the possible colors in the ranges given
+    """
+
+    # Loop though all x and ys
+    for y in y_range:
+        for x in x_range:
+
+            # Initialize color set
+            color_set = set()
+
+            # Get square of colors around original pixel
+            for dy in dy_range:
+                for dx in dx_range:
+                    color_set.add(pixels[x+dx, y+dy])
+
+            # Add set to set
+            color_grid[str(x) + "," + str(y)] = color_set
+
+    return color_grid
+    
 
 def get_set_of_colors(image):
     
