@@ -4,7 +4,7 @@ This program is still very much in testing and not ready for use yet
 
 ## Usage
 Place any images you would like scaled up into the "input" folder then simply run scale.py and
-any image inside the input folder will be scaled up by 8 times and placed into the output folder
+any image inside the input folder will be scaled up by 8 times and placed into the "output" folder
 with the same name.
 
 ## Dependences
