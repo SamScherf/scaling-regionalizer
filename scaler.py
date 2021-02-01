@@ -12,50 +12,71 @@ import time
 import os
 
 def main():
+ 
+    # Set Scales
+    scale = 8
+    blur_scale = 10
 
     # Get list of input files
-    image_names = os.listdir("input")
+    image_names = ls("input")
 
     # Scale and then save each image
     for image_name in image_names:
         # Scale image
-        image = scale_image("input/" + image_name)
+        image = scale_image("input/" + image_name, scale, blur_scale)
 
         # Save image
         image.save("output/" + image_name)
 
-def scale_image(image_name):
+
+def ls(path):
+    """
+    This function takes in a path and returns a list
+    of its output not including hidden files
+    """
+    # Initialize list
+    file_list = []
+
+    # Loop though every file
+    for file in os.listdir(path):
+        if not file.startswith('.'):
+            file_list.append(file)
+
+    # Return list
+    return file_list
+
+
+def scale_image(image_name, scale, blur_scale):
     """
     This function takes in an image name
     and returns a scaled up version of that image
     that has been smoothed without adding new colors
     """
    
-    # Open image, load pixels in var, and get width and height
+    # Open image, load pixels in var, get width and height, and get set of colors
     orginal_image = Image.open(image_name)
     orginal_width = orginal_image.width
     orginal_height = orginal_image.height
-   
-    # Get set of all original colors
     orginal_colors = get_set_of_colors(orginal_image)
-        
-    # Create normalized color dictionaries
-    normal_color_dict = create_normalized_color_dict(orginal_colors)
-    
-    # Create grid of surrounding colors
-    color_grid = {}
-
-    # Create color grid
-    color_grid = create_color_grid(color_grid, orginal_image, orginal_width, orginal_height)
    
-    # Set Scales
-    scale = 8
-    blur_scale = 10
-
     # Calculate new height and width
     scaled_width = orginal_width * scale
     scaled_height = orginal_height * scale
 
+    # Check if only one color and just scale up linearly if so
+    if (len(orginal_colors) == 1):
+        scaled_image = orginal_image.resize((scaled_width, scaled_height), resample=Image.LINEAR)
+        return scaled_image
+
+    # Create normalized color dictionaries
+    normal_color_dict = create_normalized_color_dict(orginal_colors)
+    
+    # Create grid of surrounding colors
+    color_grid = initialize_color_grid(orginal_width+1, orginal_height+1)
+
+    # Create color grid
+    color_grid = create_color_grid(color_grid, orginal_image, orginal_width, orginal_height)
+    
     # Resize new image, apply filter, and load pixels in var
     scaled_image = orginal_image.resize((scaled_width, scaled_height), resample=Image.LANCZOS)
     scaled_image = scaled_image.filter(ImageFilter.GaussianBlur(blur_scale))
@@ -72,13 +93,39 @@ def scale_image(image_name):
             nearest_o_y = int(round(y/scale))
             
             # Get possible colors from color grid
-            possible_colors = color_grid[str(nearest_o_x) + "," + str(nearest_o_y)]
+            possible_colors = color_grid[nearest_o_x][nearest_o_y]
 
             # Set pixel to most similar color
             scaled_pixels[x,y] = get_most_similiar_color(current_color, possible_colors, normal_color_dict)
 
     # Return image            
     return scaled_image
+
+
+
+def initialize_color_grid(width, height):
+    """
+    This function takes in a width and height and returns a grid
+    of empty sets accessible as list[x][y]
+    """
+
+    # Initialize var
+    grid = list()
+
+    # Loop though every x
+    for x in range(width):
+        # Reset col
+        col = list()
+
+        # Add every y to the row
+        for y in range(height):
+            col.append(set())
+
+        # Add col to grid
+        grid.append(col)
+
+    return grid
+
 
 
 def create_normalized_color_dict(set_of_colors):
@@ -126,14 +173,14 @@ def create_color_grid(color_grid, image, width, height):
     
     # Bottom overflow
     for x in range(width):
-        color_grid[str(x) + "," + str(height)] = color_grid[str(x) + "," + str(height-1)]
+        color_grid[x][height] = color_grid[x][height-1]
 
     # Right overflow
     for y in range(height):
-        color_grid[str(width) + "," + str(y)] = color_grid[str(width-1) + "," + str(y)]
+        color_grid[width][y] = color_grid[width-1][y]
 
     # Bottom Right corner overflow
-    color_grid[str(width) + "," + str(height)] = color_grid[str(width-1) + "," + str(height-1)]
+    color_grid[width][height] = color_grid[width][height-1]
 
     # Return color grid
     return color_grid
@@ -157,7 +204,7 @@ def color_grid_generator(color_grid, pixels, x_range, y_range, dx_range, dy_rang
                     color_set.add(pixels[x+dx, y+dy])
 
             # Add set to set
-            color_grid[str(x) + "," + str(y)] = color_set
+            color_grid[x][y] = color_set
 
     return color_grid
     
